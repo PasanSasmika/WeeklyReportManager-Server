@@ -258,4 +258,159 @@ reportRoutes.get("/:id/versions", requireAuth, requireRole("team_member"), async
   }
 });
 
+
+// -----------------------------
+// LIST all team reports — manager only (with filters, sort, pagination)
+// Example: GET /api/v1/reports/team?status=submitted&projectId=1&userId=3&sortBy=week_start&order=desc&page=1&limit=10
+// -----------------------------
+reportRoutes.get("/team/all", requireAuth, requireRole("manager"), async (req, res, next) => {
+  try {
+    const { status = "", projectId = "", userId = "", weekStart = "", weekEnd = "" } = req.query;
+    const sortBy = req.query.sortBy || "week_start";
+    const order = req.query.order || "desc";
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const allowedSortColumns = ["week_start", "created_at", "status"];
+    const sortColumn = allowedSortColumns.includes(sortBy) ? sortBy : "week_start";
+    const sortDirection = order.toLowerCase() === "asc" ? "ASC" : "DESC";
+
+    const safePage = Math.max(page, 1);
+    const safeLimit = Math.min(limit, 50);
+    const offset = (safePage - 1) * safeLimit;
+
+    // build WHERE clause dynamically based on which filters were provided
+    let whereClause = "WHERE 1=1";
+    const params = [];
+
+    if (status) {
+      whereClause += " AND r.status = ?";
+      params.push(status);
+    }
+    if (projectId) {
+      whereClause += " AND r.project_id = ?";
+      params.push(projectId);
+    }
+    if (userId) {
+      whereClause += " AND r.user_id = ?";
+      params.push(userId);
+    }
+    if (weekStart) {
+      whereClause += " AND r.week_start >= ?";
+      params.push(weekStart);
+    }
+    if (weekEnd) {
+      whereClause += " AND r.week_end <= ?";
+      params.push(weekEnd);
+    }
+
+    // join users and projects so the dashboard gets names, not just ids
+    const [reports] = await pool.query(
+      `SELECT r.*, u.name AS user_name, p.name AS project_name
+       FROM reports r
+       JOIN users u ON u.id = r.user_id
+       JOIN projects p ON p.id = r.project_id
+       ${whereClause}
+       ORDER BY r.${sortColumn} ${sortDirection}
+       LIMIT ? OFFSET ?`,
+      [...params, safeLimit, offset]
+    );
+
+    const [countResult] = await pool.query(
+      `SELECT COUNT(*) AS total FROM reports r ${whereClause}`,
+      params
+    );
+
+    res.json({
+      data: reports,
+      meta: { page: safePage, limit: safeLimit, total: countResult[0].total },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// -----------------------------
+// GET a single report (any team member's) — manager only
+// Includes version history and all past review comments
+// -----------------------------
+reportRoutes.get("/team/:id", requireAuth, requireRole("manager"), async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT r.*, u.name AS user_name, p.name AS project_name
+       FROM reports r
+       JOIN users u ON u.id = r.user_id
+       JOIN projects p ON p.id = r.project_id
+       WHERE r.id = ?`,
+      [req.params.id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: { message: "Report not found" } });
+    }
+
+    const [versions] = await pool.query(
+      "SELECT * FROM report_versions WHERE report_id = ? ORDER BY version_no DESC",
+      [req.params.id]
+    );
+
+    const [comments] = await pool.query(
+      `SELECT c.*, u.name AS manager_name
+       FROM review_comments c
+       JOIN users u ON u.id = c.manager_id
+       WHERE c.report_id = ?
+       ORDER BY c.created_at DESC`,
+      [req.params.id]
+    );
+
+    res.json({ data: { ...rows[0], versions, comments } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+reportRoutes.post("/team/:id/review", requireAuth, requireRole("manager"), async (req, res, next) => {
+  try {
+    const { action, comment = "" } = req.body;
+
+    if (action !== "approved" && action !== "changes_requested") {
+      return res.status(400).json({
+        error: { message: "action must be 'approved' or 'changes_requested'" },
+      });
+    }
+    if (action === "changes_requested" && comment.trim() === "") {
+      return res.status(400).json({
+        error: { message: "A comment is required when requesting changes" },
+      });
+    }
+
+    const [rows] = await pool.query("SELECT * FROM reports WHERE id = ?", [req.params.id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: { message: "Report not found" } });
+    }
+    const report = rows[0];
+
+    if (report.status !== "submitted") {
+      return res.status(400).json({
+        error: { message: "Only submitted reports can be reviewed" },
+      });
+    }
+
+    const newStatus = action === "approved" ? "approved" : "needs_correction";
+
+    // record the comment against the version currently under review
+    await pool.query(
+      "INSERT INTO review_comments (report_id, version_no, manager_id, action, comment) VALUES (?, ?, ?, ?, ?)",
+      [report.id, report.current_version, req.user.id, action, comment]
+    );
+
+    await pool.query("UPDATE reports SET status = ? WHERE id = ?", [newStatus, report.id]);
+
+    res.json({ data: { id: report.id, status: newStatus } });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default reportRoutes;
