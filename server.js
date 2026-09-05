@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import pool from "./db.js";
 import authRoutes from "./routes/auth.routes.js";
+import projectRoutes from "./routes/project.routes.js";
 
 dotenv.config();
 
@@ -22,7 +23,19 @@ app.get(`${API_BASE}/health`, async (req, res) => {
   }
 });
 
+
+
+
 app.use(`${API_BASE}/auth`, authRoutes);
+app.use(`${API_BASE}/projects`, projectRoutes);
+
+
+
+
+
+
+
+
 
 // 404 handler for unmatched routes
 app.use((req, res) => {
