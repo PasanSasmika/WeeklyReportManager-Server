@@ -5,6 +5,7 @@ import pool from "./db.js";
 import authRoutes from "./routes/auth.routes.js";
 import projectRoutes from "./routes/project.routes.js";
 import reportRoutes from "./routes/reports.route.js";
+import userRoutes from "./routes/users.routes.js";
 
 dotenv.config();
 
@@ -30,6 +31,7 @@ app.get(`${API_BASE}/health`, async (req, res) => {
 app.use(`${API_BASE}/auth`, authRoutes);
 app.use(`${API_BASE}/projects`, projectRoutes);
 app.use(`${API_BASE}/projects`, reportRoutes);
+app.use(`${API_BASE}/projects`, userRoutes);
 
 
 
