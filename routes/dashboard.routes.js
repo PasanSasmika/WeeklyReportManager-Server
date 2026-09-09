@@ -7,7 +7,6 @@ const dashboardRoutes = Router();
 // all dashboard routes require a manager
 dashboardRoutes.use(requireAuth, requireRole("manager"));
 
-
 dashboardRoutes.get("/summary", async (req, res, next) => {
   try {
     const { weekStart, weekEnd } = req.query;
@@ -32,10 +31,11 @@ dashboardRoutes.get("/summary", async (req, res, next) => {
     const needsCorrectionCount = reportsThisWeek.filter(r => r.status === "needs_correction").length;
 
     // count key blockers across this week's reports that are still open (not approved yet)
+    // mysql2 already parses JSON columns into arrays - no JSON.parse needed
     let openBlockers = 0;
     for (const report of reportsThisWeek) {
       if (report.status === "approved") continue;
-      const blockers = JSON.parse(report.blockers || "[]");
+      const blockers = report.blockers || [];
       openBlockers += blockers.length;
     }
 
@@ -53,22 +53,18 @@ dashboardRoutes.get("/summary", async (req, res, next) => {
   }
 });
 
-// -----------------------------
-// CHART: tasks completed trend over the last N weeks (team-wide)
-// -----------------------------
 dashboardRoutes.get("/charts/tasks-trend", async (req, res, next) => {
   try {
     const weeksToShow = parseInt(req.query.weeks) || 6;
 
     const [reports] = await pool.query(
       "SELECT week_start, tasks_completed FROM reports ORDER BY week_start DESC LIMIT ?",
-      [weeksToShow * 20] // rough upper bound covering all members for those weeks
+      [weeksToShow * 20]
     );
 
-    // group task counts by week_start
     const countsByWeek = {};
     for (const report of reports) {
-      const tasks = JSON.parse(report.tasks_completed || "[]");
+      const tasks = report.tasks_completed || [];
       const doneCount = tasks.filter(t => t.status === "done").length;
       const key = report.week_start.toISOString().slice(0, 10);
       countsByWeek[key] = (countsByWeek[key] || 0) + doneCount;
@@ -85,9 +81,6 @@ dashboardRoutes.get("/charts/tasks-trend", async (req, res, next) => {
   }
 });
 
-// -----------------------------
-// CHART: submission status breakdown by team member, for a given week
-// -----------------------------
 dashboardRoutes.get("/charts/status-by-member", async (req, res, next) => {
   try {
     const { weekStart, weekEnd } = req.query;
@@ -95,7 +88,6 @@ dashboardRoutes.get("/charts/status-by-member", async (req, res, next) => {
       return res.status(400).json({ error: { message: "weekStart and weekEnd are required" } });
     }
 
-    // left join so members with no report that week still show up as "not_started"
     const [rows] = await pool.query(
       `SELECT u.id, u.name, r.status
        FROM users u
@@ -115,9 +107,6 @@ dashboardRoutes.get("/charts/status-by-member", async (req, res, next) => {
   }
 });
 
-// -----------------------------
-// CHART: workload distribution by project (task counts), for a given week
-// -----------------------------
 dashboardRoutes.get("/charts/workload-by-project", async (req, res, next) => {
   try {
     const { weekStart, weekEnd } = req.query;
@@ -135,7 +124,7 @@ dashboardRoutes.get("/charts/workload-by-project", async (req, res, next) => {
 
     const countsByProject = {};
     for (const report of reports) {
-      const tasks = JSON.parse(report.tasks_completed || "[]");
+      const tasks = report.tasks_completed || [];
       countsByProject[report.project_name] = (countsByProject[report.project_name] || 0) + tasks.length;
     }
 
@@ -150,10 +139,6 @@ dashboardRoutes.get("/charts/workload-by-project", async (req, res, next) => {
   }
 });
 
-// -----------------------------
-// CHART: time spent by task type, team-wide, for a given week
-// Example: GET /api/v1/dashboard/charts/time-by-type?weekStart=2026-08-25&weekEnd=2026-08-31
-// -----------------------------
 dashboardRoutes.get("/charts/time-by-type", async (req, res, next) => {
   try {
     const { weekStart, weekEnd } = req.query;
@@ -168,7 +153,7 @@ dashboardRoutes.get("/charts/time-by-type", async (req, res, next) => {
 
     const hoursByType = {};
     for (const report of reports) {
-      const breakdown = JSON.parse(report.hours_breakdown || "[]");
+      const breakdown = report.hours_breakdown || [];
       for (const entry of breakdown) {
         hoursByType[entry.type] = (hoursByType[entry.type] || 0) + Number(entry.hours || 0);
       }
@@ -182,9 +167,6 @@ dashboardRoutes.get("/charts/time-by-type", async (req, res, next) => {
   }
 });
 
-// -----------------------------
-// RECENT ACTIVITY FEED — latest submissions and review actions
-// -----------------------------
 dashboardRoutes.get("/activity", async (req, res, next) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 10, 30);
@@ -201,7 +183,7 @@ dashboardRoutes.get("/activity", async (req, res, next) => {
     );
 
     const activity = comments.map(c => ({
-      type: c.action, // "approved" or "changes_requested"
+      type: c.action,
       message:
         c.action === "approved"
           ? `${c.manager_name} approved ${c.member_name}'s report`
