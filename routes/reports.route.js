@@ -56,7 +56,6 @@ reportRoutes.post("/", requireAuth, requireRole("team_member"), async (req, res,
   }
 });
 
-
 reportRoutes.get("/", requireAuth, requireRole("team_member"), async (req, res, next) => {
   try {
     const status = req.query.status || "";
@@ -73,7 +72,6 @@ reportRoutes.get("/", requireAuth, requireRole("team_member"), async (req, res, 
     const safeLimit = Math.min(limit, 50);
     const offset = (safePage - 1) * safeLimit;
 
-    // build the WHERE clause dynamically based on whether a status filter was given
     let whereClause = "WHERE user_id = ?";
     const params = [req.user.id];
 
@@ -101,9 +99,6 @@ reportRoutes.get("/", requireAuth, requireRole("team_member"), async (req, res, 
   }
 });
 
-// -----------------------------
-// GET a single own report (with its latest review comment, if any)
-// -----------------------------
 reportRoutes.get("/:id", requireAuth, requireRole("team_member"), async (req, res, next) => {
   try {
     const report = await getOwnReport(req.params.id, req.user.id);
@@ -122,9 +117,6 @@ reportRoutes.get("/:id", requireAuth, requireRole("team_member"), async (req, re
   }
 });
 
-// -----------------------------
-// UPDATE own report — only allowed while draft or needs_correction
-// -----------------------------
 reportRoutes.put("/:id", requireAuth, requireRole("team_member"), async (req, res, next) => {
   try {
     const report = await getOwnReport(req.params.id, req.user.id);
@@ -175,10 +167,6 @@ reportRoutes.put("/:id", requireAuth, requireRole("team_member"), async (req, re
   }
 });
 
-// -----------------------------
-// SUBMIT own report — draft/needs_correction -> submitted
-// Also saves a snapshot into report_versions (this is our version history)
-// -----------------------------
 reportRoutes.post("/:id/submit", requireAuth, requireRole("team_member"), async (req, res, next) => {
   const connection = await pool.getConnection();
   try {
@@ -196,12 +184,9 @@ reportRoutes.post("/:id/submit", requireAuth, requireRole("team_member"), async 
     }
 
     const nextVersion = report.current_version + 1 - (report.status === "draft" ? 1 : 0);
-    // if this is the very first submit (from draft), version stays at current_version (1)
-    // if resubmitting after correction, version increments
 
     await connection.beginTransaction();
 
-    // 1. save a snapshot of the report content as it stands right now
     await connection.query(
       "INSERT INTO report_versions (report_id, version_no, snapshot) VALUES (?, ?, ?)",
       [
@@ -221,15 +206,16 @@ reportRoutes.post("/:id/submit", requireAuth, requireRole("team_member"), async 
       ]
     );
 
-    // 2. flip status to submitted and update the version number
     await connection.query(
       "UPDATE reports SET status = 'submitted', current_version = ? WHERE id = ?",
       [nextVersion, report.id]
     );
-await pool.query(
-  "INSERT INTO audit_log (actor_id, action, target_id, details) VALUES (?, ?, ?, ?)",
-  [req.user.id, "report_submitted", report.id, `Week ${report.week_start}`]
-);
+
+    await connection.query(
+      "INSERT INTO audit_log (actor_id, action, target_id, details) VALUES (?, ?, ?, ?)",
+      [req.user.id, "report_submitted", report.id, `Week ${report.week_start}`]
+    );
+
     await connection.commit();
     res.json({ data: { id: report.id, status: "submitted", version: nextVersion } });
   } catch (err) {
@@ -238,12 +224,8 @@ await pool.query(
   } finally {
     connection.release();
   }
-  await connection.commit();
 });
 
-// -----------------------------
-// GET version history for own report
-// -----------------------------
 reportRoutes.get("/:id/versions", requireAuth, requireRole("team_member"), async (req, res, next) => {
   try {
     const report = await getOwnReport(req.params.id, req.user.id);
@@ -262,11 +244,6 @@ reportRoutes.get("/:id/versions", requireAuth, requireRole("team_member"), async
   }
 });
 
-
-// -----------------------------
-// LIST all team reports — manager only (with filters, sort, pagination)
-// Example: GET /api/v1/reports/team?status=submitted&projectId=1&userId=3&sortBy=week_start&order=desc&page=1&limit=10
-// -----------------------------
 reportRoutes.get("/team/all", requireAuth, requireRole("manager"), async (req, res, next) => {
   try {
     const { status = "", projectId = "", userId = "", weekStart = "", weekEnd = "" } = req.query;
@@ -283,7 +260,6 @@ reportRoutes.get("/team/all", requireAuth, requireRole("manager"), async (req, r
     const safeLimit = Math.min(limit, 50);
     const offset = (safePage - 1) * safeLimit;
 
-    // build WHERE clause dynamically based on which filters were provided
     let whereClause = "WHERE 1=1";
     const params = [];
 
@@ -308,7 +284,6 @@ reportRoutes.get("/team/all", requireAuth, requireRole("manager"), async (req, r
       params.push(weekEnd);
     }
 
-    // join users and projects so the dashboard gets names, not just ids
     const [reports] = await pool.query(
       `SELECT r.*, u.name AS user_name, p.name AS project_name
        FROM reports r
@@ -334,10 +309,6 @@ reportRoutes.get("/team/all", requireAuth, requireRole("manager"), async (req, r
   }
 });
 
-// -----------------------------
-// GET a single report (any team member's) — manager only
-// Includes version history and all past review comments
-// -----------------------------
 reportRoutes.get("/team/:id", requireAuth, requireRole("manager"), async (req, res, next) => {
   try {
     const [rows] = await pool.query(
@@ -373,7 +344,6 @@ reportRoutes.get("/team/:id", requireAuth, requireRole("manager"), async (req, r
   }
 });
 
-
 reportRoutes.post("/team/:id/review", requireAuth, requireRole("manager"), async (req, res, next) => {
   try {
     const { action, comment = "" } = req.body;
@@ -403,17 +373,18 @@ reportRoutes.post("/team/:id/review", requireAuth, requireRole("manager"), async
 
     const newStatus = action === "approved" ? "approved" : "needs_correction";
 
-    // record the comment against the version currently under review
     await pool.query(
       "INSERT INTO review_comments (report_id, version_no, manager_id, action, comment) VALUES (?, ?, ?, ?, ?)",
       [report.id, report.current_version, req.user.id, action, comment]
     );
 
     await pool.query("UPDATE reports SET status = ? WHERE id = ?", [newStatus, report.id]);
+
     await pool.query(
-  "INSERT INTO audit_log (actor_id, action, target_id, details) VALUES (?, 'user_created', ?, ?)",
-  [req.user.id, result.insertId, `${name} (${role})`]
-);
+      "INSERT INTO audit_log (actor_id, action, target_id, details) VALUES (?, ?, ?, ?)",
+      [req.user.id, action, report.id, comment]
+    );
+
     res.json({ data: { id: report.id, status: newStatus } });
   } catch (err) {
     next(err);
