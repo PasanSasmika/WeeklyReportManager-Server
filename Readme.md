@@ -10,14 +10,14 @@ A full-stack app for team members to submit weekly work reports and managers to 
 
 This project is split into two repos:
 
-- **server:** `https://github.com/<your-username>/weekly-reports-backend`
-- **Frontend:** `https://github.com/<your-username>/weekly-reports-frontend`
+- **server:** `https://github.com/PasanSasmika/WeeklyReportManager-Server.git`
+- **Frontend:** `https://github.com/PasanSasmika/WeeklyReportManager-Frontend.git`
 
 Clone both into the same parent folder:
 
 ```bash
-git clone https://github.com/<your-username>/weekly-reports-backend.git backend
-git clone https://github.com/<your-username>/weekly-reports-frontend.git frontend
+git clone https://github.com/PasanSasmika/WeeklyReportManager-Server.git
+git clone https://github.com/PasanSasmika/WeeklyReportManager-Frontend.git
 ```
 
 You should end up with:
