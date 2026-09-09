@@ -129,4 +129,22 @@ userRoutes.delete("/:id", async (req, res, next) => {
   }
 });
 
+
+userRoutes.get("/:id", async (req, res, next) => {
+  try {
+    const [users] = await pool.query(
+      "SELECT id, name, email, role, created_at FROM users WHERE id = ?",
+      [req.params.id]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ error: { message: "User not found" } });
+    }
+
+    res.json({ data: users[0] });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default userRoutes;
