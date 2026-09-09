@@ -7,7 +7,9 @@ const dashboardRoutes = Router();
 // all dashboard routes require a manager
 dashboardRoutes.use(requireAuth, requireRole("manager"));
 
-
+// -----------------------------
+// SUMMARY METRICS for a given week
+// -----------------------------
 dashboardRoutes.get("/summary", async (req, res, next) => {
   try {
     const { weekStart, weekEnd } = req.query;
@@ -32,10 +34,11 @@ dashboardRoutes.get("/summary", async (req, res, next) => {
     const needsCorrectionCount = reportsThisWeek.filter(r => r.status === "needs_correction").length;
 
     // count key blockers across this week's reports that are still open (not approved yet)
+    // note: mysql2 already parses JSON columns into arrays/objects - no JSON.parse needed
     let openBlockers = 0;
     for (const report of reportsThisWeek) {
       if (report.status === "approved") continue;
-      const blockers = JSON.parse(report.blockers || "[]");
+      const blockers = report.blockers || [];
       openBlockers += blockers.length;
     }
 
@@ -68,7 +71,7 @@ dashboardRoutes.get("/charts/tasks-trend", async (req, res, next) => {
     // group task counts by week_start
     const countsByWeek = {};
     for (const report of reports) {
-      const tasks = JSON.parse(report.tasks_completed || "[]");
+      const tasks = report.tasks_completed || [];
       const doneCount = tasks.filter(t => t.status === "done").length;
       const key = report.week_start.toISOString().slice(0, 10);
       countsByWeek[key] = (countsByWeek[key] || 0) + doneCount;
@@ -135,7 +138,7 @@ dashboardRoutes.get("/charts/workload-by-project", async (req, res, next) => {
 
     const countsByProject = {};
     for (const report of reports) {
-      const tasks = JSON.parse(report.tasks_completed || "[]");
+      const tasks = report.tasks_completed || [];
       countsByProject[report.project_name] = (countsByProject[report.project_name] || 0) + tasks.length;
     }
 
@@ -168,7 +171,7 @@ dashboardRoutes.get("/charts/time-by-type", async (req, res, next) => {
 
     const hoursByType = {};
     for (const report of reports) {
-      const breakdown = JSON.parse(report.hours_breakdown || "[]");
+      const breakdown = report.hours_breakdown || [];
       for (const entry of breakdown) {
         hoursByType[entry.type] = (hoursByType[entry.type] || 0) + Number(entry.hours || 0);
       }
