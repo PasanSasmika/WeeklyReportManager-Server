@@ -7,6 +7,7 @@ import projectRoutes from "./routes/project.routes.js";
 import reportRoutes from "./routes/reports.route.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import userRoutes from "./routes/users.routes.js";
+import auditRoutes from "./routes/audit.routes.js";
 
 
 dotenv.config();
@@ -36,7 +37,7 @@ app.use(`${API_BASE}/projects`, projectRoutes);
 app.use(`${API_BASE}/report`, reportRoutes);
 app.use(`${API_BASE}/dashboard`, dashboardRoutes);
 app.use(`${API_BASE}/users`, userRoutes);
-
+app.use(`${API_BASE}/audit`, auditRoutes);
 
 
 
