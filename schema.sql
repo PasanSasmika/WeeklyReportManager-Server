@@ -56,3 +56,13 @@ CREATE TABLE review_comments (
   FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE,
   FOREIGN KEY (manager_id) REFERENCES users(id)
 );
+
+CREATE TABLE audit_log (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  actor_id INT NOT NULL,
+  action VARCHAR(50) NOT NULL,
+  target_id INT,
+  details TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (actor_id) REFERENCES users(id)
+);
