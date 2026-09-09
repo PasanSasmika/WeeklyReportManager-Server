@@ -12,7 +12,7 @@ projectRoutes.get("/", requireAuth, async (req, res, next) => {
     const order = req.query.order || "asc";
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
-
+   
     const allowedSortColumns = ["name", "created_at"];
     const sortColumn = allowedSortColumns.includes(sortBy) ? sortBy : "name";
     const sortDirection = order.toLowerCase() === "desc" ? "DESC" : "ASC";

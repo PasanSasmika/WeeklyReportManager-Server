@@ -7,6 +7,7 @@ const dashboardRoutes = Router();
 // all dashboard routes require a manager
 dashboardRoutes.use(requireAuth, requireRole("manager"));
 
+
 dashboardRoutes.get("/summary", async (req, res, next) => {
   try {
     const { weekStart, weekEnd } = req.query;
@@ -31,7 +32,6 @@ dashboardRoutes.get("/summary", async (req, res, next) => {
     const needsCorrectionCount = reportsThisWeek.filter(r => r.status === "needs_correction").length;
 
     // count key blockers across this week's reports that are still open (not approved yet)
-    // mysql2 already parses JSON columns into arrays - no JSON.parse needed
     let openBlockers = 0;
     for (const report of reportsThisWeek) {
       if (report.status === "approved") continue;
