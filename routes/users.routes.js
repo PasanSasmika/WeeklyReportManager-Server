@@ -77,7 +77,10 @@ userRoutes.post("/", async (req, res, next) => {
       "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
       [name, email, hashedPassword, role]
     );
-
+await pool.query(
+  "INSERT INTO audit_log (actor_id, action, target_id, details) VALUES (?, 'user_created', ?, ?)",
+  [req.user.id, result.insertId, `${name} (${role})`]
+);
     res.status(201).json({ data: { id: result.insertId, name, email, role } });
   } catch (err) {
     next(err);
@@ -100,7 +103,10 @@ userRoutes.put("/:id/role", async (req, res, next) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: { message: "User not found" } });
     }
-
+  await pool.query(
+  "INSERT INTO audit_log (actor_id, action, target_id, details) VALUES (?, 'user_role_changed', ?, ?)",
+  [req.user.id, req.params.id, role]
+);
     res.json({ data: { id: Number(req.params.id), role } });
   } catch (err) {
     next(err);
@@ -122,7 +128,10 @@ userRoutes.delete("/:id", async (req, res, next) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: { message: "User not found" } });
     }
-
+ await pool.query(
+  "INSERT INTO audit_log (actor_id, action, target_id) VALUES (?, 'user_removed', ?)",
+  [req.user.id, req.params.id]
+);
     res.json({ data: { id: Number(req.params.id) } });
   } catch (err) {
     next(err);

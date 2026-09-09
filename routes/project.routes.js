@@ -76,6 +76,10 @@ projectRoutes.post("/", requireAuth, requireRole("manager"), async (req, res, ne
       [name.trim(), description]
     );
 
+  await pool.query(
+  "INSERT INTO audit_log (actor_id, action, target_id, details) VALUES (?, 'project_created', ?, ?)",
+  [req.user.id, result.insertId, name]
+);
     res.status(201).json({
       data: { id: result.insertId, name: name.trim(), description },
     });
@@ -104,11 +108,16 @@ projectRoutes.put("/:id", requireAuth, requireRole("manager"), async (req, res, 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: { message: "Project not found" } });
     }
-
+    
+  await pool.query(
+  "INSERT INTO audit_log (actor_id, action, target_id, details) VALUES (?, 'project_updated', ?, ?)",
+  [req.user.id, req.params.id, name]
+);
     res.json({ data: { id: Number(req.params.id), name: name.trim(), description } });
   } catch (err) {
     next(err);
   }
+
 });
 
 // -----------------------------
@@ -134,6 +143,10 @@ projectRoutes.delete("/:id", requireAuth, requireRole("manager"), async (req, re
       return res.status(404).json({ error: { message: "Project not found" } });
     }
 
+  await pool.query(
+  "INSERT INTO audit_log (actor_id, action, target_id) VALUES (?, 'project_deleted', ?)",
+  [req.user.id, req.params.id]
+);
     res.json({ data: { id: Number(req.params.id) } });
   } catch (err) {
     next(err);

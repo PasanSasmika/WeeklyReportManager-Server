@@ -226,7 +226,10 @@ reportRoutes.post("/:id/submit", requireAuth, requireRole("team_member"), async 
       "UPDATE reports SET status = 'submitted', current_version = ? WHERE id = ?",
       [nextVersion, report.id]
     );
-
+await pool.query(
+  "INSERT INTO audit_log (actor_id, action, target_id, details) VALUES (?, ?, ?, ?)",
+  [req.user.id, "report_submitted", report.id, `Week ${report.week_start}`]
+);
     await connection.commit();
     res.json({ data: { id: report.id, status: "submitted", version: nextVersion } });
   } catch (err) {
@@ -235,6 +238,7 @@ reportRoutes.post("/:id/submit", requireAuth, requireRole("team_member"), async 
   } finally {
     connection.release();
   }
+  await connection.commit();
 });
 
 // -----------------------------
@@ -406,7 +410,10 @@ reportRoutes.post("/team/:id/review", requireAuth, requireRole("manager"), async
     );
 
     await pool.query("UPDATE reports SET status = ? WHERE id = ?", [newStatus, report.id]);
-
+    await pool.query(
+  "INSERT INTO audit_log (actor_id, action, target_id, details) VALUES (?, 'user_created', ?, ?)",
+  [req.user.id, result.insertId, `${name} (${role})`]
+);
     res.json({ data: { id: report.id, status: newStatus } });
   } catch (err) {
     next(err);
