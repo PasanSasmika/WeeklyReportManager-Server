@@ -8,6 +8,7 @@ import reportRoutes from "./routes/reports.route.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import userRoutes from "./routes/users.routes.js";
 import auditRoutes from "./routes/audit.routes.js";
+import aiRoutes from "./routes/ai.routes.js";
 
 
 dotenv.config();
@@ -38,7 +39,7 @@ app.use(`${API_BASE}/report`, reportRoutes);
 app.use(`${API_BASE}/dashboard`, dashboardRoutes);
 app.use(`${API_BASE}/users`, userRoutes);
 app.use(`${API_BASE}/audit`, auditRoutes);
-
+app.use(`${API_BASE}/ai`, aiRoutes);
 
 
 // 404 handler for unmatched routes
