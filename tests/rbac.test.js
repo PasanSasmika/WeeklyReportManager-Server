@@ -1,21 +1,16 @@
 import request from "supertest";
 import app from "../app.js";
-
-// These tests assume your seeded database is loaded:
-// alice@example.com (manager), nimal@example.com (team_member)
-// both with password: password123
+import pool from "../db.js";
 
 let managerToken;
 let memberToken;
 let memberTwoToken;
 
 beforeAll(async () => {
- const managerLogin = await request(app)
-  .post("/api/v1/auth/login")
-  .send({ email: "alice@example.com", password: "password123" });
-
-console.log("LOGIN RESPONSE:", managerLogin.status, managerLogin.body);
-managerToken = managerLogin.body.data.token;
+  const managerLogin = await request(app)
+    .post("/api/v1/auth/login")
+    .send({ email: "alice@example.com", password: "password123" });
+  managerToken = managerLogin.body.data.token;
 
   const memberLogin = await request(app)
     .post("/api/v1/auth/login")
@@ -28,10 +23,14 @@ managerToken = managerLogin.body.data.token;
   memberTwoToken = memberTwoLogin.body.data.token;
 });
 
+afterAll(async () => {
+  await pool.end();
+});
+
 describe("Role-based access control", () => {
   test("team member CANNOT access the manager-only team reports list", async () => {
     const res = await request(app)
-      .get("/api/v1/reports/team/all")
+      .get("/api/v1/report/team/all")
       .set("Authorization", `Bearer ${memberToken}`);
 
     expect(res.status).toBe(403);
@@ -56,16 +55,15 @@ describe("Role-based access control", () => {
 
   test("manager CAN access the team reports list", async () => {
     const res = await request(app)
-      .get("/api/v1/reports/team/all")
+      .get("/api/v1/report/team/all")
       .set("Authorization", `Bearer ${managerToken}`);
 
     expect(res.status).toBe(200);
   });
 
   test("a team member cannot access another team member's own report by id", async () => {
-    // create a report as member one
     const createRes = await request(app)
-      .post("/api/v1/reports")
+      .post("/api/v1/report")
       .set("Authorization", `Bearer ${memberToken}`)
       .send({
         projectId: 1,
@@ -76,24 +74,21 @@ describe("Role-based access control", () => {
 
     const reportId = createRes.body.data.id;
 
-    // member two tries to fetch member one's report via the "own reports" endpoint
     const res = await request(app)
-      .get(`/api/v1/reports/${reportId}`)
+      .get(`/api/v1/report/${reportId}`)
       .set("Authorization", `Bearer ${memberTwoToken}`);
 
-    // getOwnReport() filters by user_id, so this should look like "not found",
-   
     expect(res.status).toBe(404);
   });
 
   test("request with no token is rejected", async () => {
-    const res = await request(app).get("/api/v1/reports");
+    const res = await request(app).get("/api/v1/report");
     expect(res.status).toBe(401);
   });
 
   test("request with an invalid token is rejected", async () => {
     const res = await request(app)
-      .get("/api/v1/reports")
+      .get("/api/v1/report")
       .set("Authorization", "Bearer not-a-real-token");
 
     expect(res.status).toBe(401);
