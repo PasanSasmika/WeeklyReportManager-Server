@@ -2,12 +2,12 @@ USE weekly_reports;
 
 
 INSERT INTO users (name, email, password, role) VALUES
-('Alice Perera', 'alice@example.com', '$2a$10$CwTycUXWue0Thq9StjUM0uJ8Q3v6yE2wOa4XLQ3rH2LZ5v6yPQK9K', 'manager'),
-('Nimal Silva', 'nimal@example.com', '$2a$10$CwTycUXWue0Thq9StjUM0uJ8Q3v6yE2wOa4XLQ3rH2LZ5v6yPQK9K', 'team_member'),
-('Kasun Fernando', 'kasun@example.com', '$2a$10$CwTycUXWue0Thq9StjUM0uJ8Q3v6yE2wOa4XLQ3rH2LZ5v6yPQK9K', 'team_member'),
-('Sanduni Jayasuriya', 'sanduni@example.com', '$2a$10$CwTycUXWue0Thq9StjUM0uJ8Q3v6yE2wOa4XLQ3rH2LZ5v6yPQK9K', 'team_member'),
-('Ruwan Bandara', 'ruwan@example.com', '$2a$10$CwTycUXWue0Thq9StjUM0uJ8Q3v6yE2wOa4XLQ3rH2LZ5v6yPQK9K', 'team_member'),
-('Tharindu Wickrama', 'tharindu@example.com', '$2a$10$CwTycUXWue0Thq9StjUM0uJ8Q3v6yE2wOa4XLQ3rH2LZ5v6yPQK9K', 'team_member');
+('Alice Perera', 'alice@example.com', '$2b$10$MA2YIVXNF7Ghv1ZOxOopje7dSG1L8oOEkhaUTFRGi2QBl71V7HXhm', 'manager'),
+('Nimal Silva', 'nimal@example.com', '$2b$10$MA2YIVXNF7Ghv1ZOxOopje7dSG1L8oOEkhaUTFRGi2QBl71V7HXhm', 'team_member'),
+('Kasun Fernando', 'kasun@example.com', '$2b$10$MA2YIVXNF7Ghv1ZOxOopje7dSG1L8oOEkhaUTFRGi2QBl71V7HXhm', 'team_member'),
+('Sanduni Jayasuriya', 'sanduni@example.com', '$2b$10$MA2YIVXNF7Ghv1ZOxOopje7dSG1L8oOEkhaUTFRGi2QBl71V7HXhm', 'team_member'),
+('Ruwan Bandara', 'ruwan@example.com', '$2b$10$MA2YIVXNF7Ghv1ZOxOopje7dSG1L8oOEkhaUTFRGi2QBl71V7HXhm', 'team_member'),
+('Tharindu Wickrama', 'tharindu@example.com', '$2b$10$MA2YIVXNF7Ghv1ZOxOopje7dSG1L8oOEkhaUTFRGi2QBl71V7HXhm', 'team_member');
 
 -- ============================================
 -- PROJECTS
